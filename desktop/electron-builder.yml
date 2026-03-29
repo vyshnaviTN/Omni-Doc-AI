@@ -1,0 +1,25 @@
+appId: com.omnidoc.app
+productName: Omni-Doc
+directories:
+  output: dist_electron
+  buildResources: build
+files:
+  - "**/*"
+  - "!../frontend/node_modules"
+  - "!../backend/venv"
+extraFiles:
+  - from: ../backend
+    to: backend
+    filter:
+      - "**/*"
+      - "!venv/**/*"
+      - "!__pycache__/**/*"
+      - "!*.db"
+      - "!chroma_db/**/*"
+win:
+  target: nsis
+  icon: build/icon.ico
+nsis:
+  oneClick: false
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: true

@@ -1,0 +1,22 @@
+{
+  "name": "omni-doc-desktop",
+  "version": "1.0.0",
+  "description": "Omni-Doc Offline Desktop Application",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "dev": "concurrently \"npm run dev --prefix ../frontend\" \"electron .\"",
+    "build:frontend": "npm run build --prefix ../frontend",
+    "dist": "npm run build:frontend && electron-builder"
+  },
+  "keywords": [],
+  "author": "Antigravity",
+  "license": "MIT",
+  "type": "commonjs",
+  "devDependencies": {
+    "concurrently": "^9.1.2",
+    "electron": "^35.0.0",
+    "electron-builder": "^25.1.8",
+    "tree-kill": "^1.2.2"
+  }
+}

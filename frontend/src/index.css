@@ -1,0 +1,82 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    background-color: #F8FAFC;
+    color: #1E293B;
+    -webkit-font-smoothing: antialiased;
+    overflow: hidden;
+  }
+}
+
+@layer utilities {
+  .custom-scrollbar::-webkit-scrollbar {
+    width: 5px;
+    height: 5px;
+  }
+
+  .custom-scrollbar::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .custom-scrollbar::-webkit-scrollbar-thumb {
+    background-color: #CBD5E1;
+    border-radius: 99px;
+  }
+
+  .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+    background-color: #94A3B8;
+  }
+
+  .custom-scrollbar {
+    scrollbar-width: thin;
+    scrollbar-color: #CBD5E1 transparent;
+  }
+}
+
+/* Typography & Prose Tweaks for light theme */
+.prose {
+  @apply max-w-none;
+  color: #1E293B;
+}
+
+.prose p {
+  @apply leading-relaxed mb-4 last:mb-0;
+}
+
+.prose code {
+  background: #EEF2FF;
+  color: #4F46E5;
+  border-radius: 5px;
+  padding: 1px 6px;
+}
+
+.prose code::before,
+.prose code::after {
+  content: none;
+}
+
+.prose pre {
+  background: #1E293B;
+  border-radius: 12px;
+  padding: 1rem;
+  margin: 1.25rem 0;
+  overflow-x: auto;
+}
+
+.prose pre code {
+  background: transparent;
+  color: #e2e8f0;
+  font-size: 13px;
+}
+
+/* Message animation */
+@keyframes fadeSlideUp {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.msg-enter {
+  animation: fadeSlideUp 0.3s ease-out forwards;
+}
