@@ -62,3 +62,17 @@ desktop/out/
 
 # Agents
 .agent/
+.gemini/
+
+# Project Specific Data
+backend/ocr_verification/
+backend/chroma_db/
+backend/*.db
+backend/.langchain.db
+backend/.pytest_cache/
+backend/debug_*.png
+backend/test_*.pdf
+backend/test_*.txt
+
+# App Data
+omni_doc_data/

@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+// eslint-disable-next-line no-unused-vars
 import { motion, AnimatePresence } from 'framer-motion';
-import { authApi } from '../api';
 
 export default function LoginPage() {
   const [tab, setTab] = useState('login');
@@ -31,14 +31,10 @@ export default function LoginPage() {
 
     setLoading(true);
     try {
-      const res = tab === 'login'
-        ? await authApi.login(email, password)
-        : await authApi.register(email, password);
-      localStorage.setItem('omni-token', res.access_token);
-      localStorage.setItem('omni-email', res.email);
+      localStorage.setItem('omni-email', email);
       navigate('/chat', { replace: true });
-    } catch (err) {
-      setError(err.response?.data?.detail || 'Something went wrong. Please try again.');
+    } catch {
+      setError('Something went wrong. Please try again.');
     } finally {
       setLoading(false);
     }

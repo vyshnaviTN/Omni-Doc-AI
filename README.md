@@ -112,22 +112,26 @@ Electron (Offline packaging)
 
 ⚙️ Installation & Setup (Windows)
 1️⃣ Clone Repository
-git clone https://github.com/your-username/omni-doc.git
+git clone https://github.com/vyshnaviTN/Omni-Doc-AI.git
 cd omni-doc
 2️⃣ Install Ollama
 
 Download and install Ollama:
 👉 https://ollama.com
 
-Run model:
-
+Run models:
 ollama run phi
+ollama pull moondream
 3️⃣ Backend Setup
 cd backend
 python -m venv venv
 venv\Scripts\activate
 pip install -r requirements.txt
-uvicorn main:app --reload
+
+# Ensure Tesseract OCR is installed on your system:
+# Download from: https://github.com/UB-Mannheim/tesseract/wiki
+
+python main.py
 4️⃣ Frontend Setup
 cd frontend
 npm install

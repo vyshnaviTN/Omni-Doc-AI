@@ -7,36 +7,22 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-from database.core import engine
+from database.core import engine, db_path
 from database import models
 from routers import documents, chat, analytics, auth
+from migrate_chat_ids import ensure_chat_message_ids_are_text
 
 # Create tables
 models.Base.metadata.create_all(bind=engine)
+ensure_chat_message_ids_are_text(db_path)
 
 app = FastAPI(title="Omni-Doc API", description="Enterprise-grade RAG knowledge engine")
 
-# CORS: must allow credentials=True when Authorization header is sent.
-# Electron (file://) and Vite dev server (localhost:5173) both need to be listed.
-# Using allow_origins=["*"] is incompatible with allow_credentials=True,
-# so we explicitly list all expected origins.
-ALLOWED_ORIGINS = [
-    "http://localhost:5173",
-    "http://127.0.0.1:5173",
-    "http://localhost:3000",
-    "http://127.0.0.1:3000",
-    "http://localhost:8000",
-    "http://127.0.0.1:8000",
-    # Electron file:// origin is sent as "null" by the browser
-    "null",
-    "file://",
-]
-
+# CORS: JWT is disabled for local testing — use permissive wildcard.
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=ALLOWED_ORIGINS,
-    allow_origin_regex=r"https?://(localhost|127\.0\.0\.1)(:\d+)?",
-    allow_credentials=True,
+    allow_origins=["*"],
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
     expose_headers=["*"],
@@ -46,6 +32,15 @@ app.include_router(auth.router)
 app.include_router(documents.router)
 app.include_router(chat.router)
 app.include_router(analytics.router)
+
+# Print routes on startup for debugging
+@app.on_event("startup")
+async def list_routes():
+    print("\n--- Omni-Doc Registered Routes ---")
+    for route in app.routes:
+        methods = getattr(route, 'methods', None)
+        print(f"{list(methods) if methods else '---'} {route.path}")
+    print("----------------------------------\n")
 
 
 @app.get("/")
@@ -64,4 +59,5 @@ def health_check():
 
 if __name__ == "__main__":
     port = int(os.getenv("PORT", 8000))
-    uvicorn.run("main:app", host="0.0.0.0", port=port, reload=False)
+    reload_enabled = os.getenv("UVICORN_RELOAD", "true").strip().lower() in {"1", "true", "yes", "on"}
+    uvicorn.run("main:app", host="0.0.0.0", port=port, reload=reload_enabled)

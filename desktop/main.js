@@ -11,7 +11,7 @@ let backendProcess;
 const BACKEND_PORT = process.env.PORT || 8000;
 const BACKEND_URL = `http://127.0.0.1:${BACKEND_PORT}`;
 const HEALTH_URL = `${BACKEND_URL}/health`;
-const MAX_RETRIES = 60;       // 30 seconds total (60 × 500ms)
+const MAX_RETRIES = 300;      // 150 seconds total (model download on first boot can be slow)
 const RETRY_INTERVAL_MS = 500;
 
 // ── Splash Window ──────────────────────────────────────────────────────────────

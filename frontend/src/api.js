@@ -9,14 +9,23 @@ const api = axios.create({
   timeout: 15000,
 });
 
-// Attach JWT token to every Axios request automatically
+const ACTIVE_SESSION_KEY = 'omni-active-session';
+export const ACTIVE_SESSION_EVENT = 'omni-active-session-change';
+
+function getUserEmailHeader() {
+  const email = localStorage.getItem('omni-email');
+  return email ? { 'X-User-Email': email } : {};
+}
+
 api.interceptors.request.use((config) => {
-  const token = localStorage.getItem('omni-token');
-  if (token) config.headers['Authorization'] = `Bearer ${token}`;
+  config.headers = {
+    ...(config.headers || {}),
+    ...getUserEmailHeader(),
+  };
   return config;
 });
 
-// Normalize Axios error messages for display
+// Normalize Axios error messages for display (no auth interceptor)
 api.interceptors.response.use(
   (res) => res,
   (error) => {
@@ -46,6 +55,16 @@ export function extractErrorMessage(error) {
   return error?.message || 'An unexpected error occurred.';
 }
 
+export function getActiveSessionId() {
+  return localStorage.getItem(ACTIVE_SESSION_KEY);
+}
+
+export function setActiveSessionId(sessionId) {
+  if (sessionId) localStorage.setItem(ACTIVE_SESSION_KEY, sessionId);
+  else localStorage.removeItem(ACTIVE_SESSION_KEY);
+  window.dispatchEvent(new CustomEvent(ACTIVE_SESSION_EVENT, { detail: { sessionId: sessionId || null } }));
+}
+
 /**
  * Retry an async function up to maxRetries times with a delay between attempts.
  */
@@ -72,22 +91,12 @@ async function withRetry(fn, maxRetries = 3, delayMs = 1000) {
   throw lastError;
 }
 
-// ── Auth API ───────────────────────────────────────────────────────────────────
+// ── Auth API (stub — JWT disabled for testing) ─────────────────────────────────
 export const authApi = {
-  login: async (email, password) => {
-    const res = await api.post('/auth/login', { email, password });
-    return res.data;
-  },
-  register: async (email, password) => {
-    const res = await api.post('/auth/register', { email, password });
-    return res.data;
-  },
-  me: async () => {
-    const res = await api.get('/auth/me');
-    return res.data;
-  },
+  login: async () => ({ email: 'test@local' }),
+  register: async () => ({ email: 'test@local' }),
+  me: async () => ({ email: localStorage.getItem('omni-email') || 'test@local' }),
   logout: () => {
-    localStorage.removeItem('omni-token');
     localStorage.removeItem('omni-email');
     localStorage.removeItem('omni-chat-backup');
   }
@@ -111,21 +120,24 @@ export const healthApi = {
 
 // ── Document API ───────────────────────────────────────────────────────────────
 export const documentApi = {
-  upload: async (file, onProgress) => {
+  upload: async (file, sessionId, onProgress) => {
     return withRetry(async () => {
+      if (!sessionId) {
+        throw new Error('Please create or open a session before uploading.');
+      }
+
       const formData = new FormData();
       formData.append('file', file);
-
-      const token = localStorage.getItem('omni-token');
-      const headers = {};
-      if (token) headers['Authorization'] = `Bearer ${token}`;
+      formData.append('session_id', sessionId);
 
       // XMLHttpRequest for upload progress (fetch doesn't support upload progress events)
       return new Promise((resolve, reject) => {
         const xhr = new XMLHttpRequest();
         xhr.open('POST', `${API_BASE_URL}/documents/upload`);
-
-        Object.entries(headers).forEach(([k, v]) => xhr.setRequestHeader(k, v));
+        const email = localStorage.getItem('omni-email');
+        if (email) {
+          xhr.setRequestHeader('X-User-Email', email);
+        }
 
         xhr.upload.onprogress = (event) => {
           if (event.lengthComputable && onProgress) {
@@ -146,15 +158,17 @@ export const documentApi = {
         };
 
         xhr.onerror = () => reject(new Error('Failed to fetch'));
-        xhr.ontimeout = () => reject(new Error('Upload timed out. The file may be too large.'));
-        xhr.timeout = 120000;
+        xhr.ontimeout = () => reject(new Error('Upload timed out. Extreme OCR processes may take several minutes.'));
+        xhr.timeout = 300000; // 5 minutes
         xhr.send(formData);
       });
     }, 3, 1500);
   },
 
-  list: async () => {
-    const response = await api.get('/documents/');
+  list: async (sessionId) => {
+    const response = await api.get('/documents/', {
+      params: sessionId ? { session_id: sessionId } : undefined,
+    });
     return response.data;
   },
 
@@ -168,13 +182,12 @@ export const documentApi = {
 export const chatApi = {
   askStream: async (query, sessionId, onMessage, onCitations, onError, onComplete, signal) => {
     try {
-      const token = localStorage.getItem('omni-token');
-      const headers = { 'Content-Type': 'application/json' };
-      if (token) headers['Authorization'] = `Bearer ${token}`;
-
       const response = await fetch(`${API_BASE_URL}/chat/`, {
         method: 'POST',
-        headers,
+        headers: {
+          'Content-Type': 'application/json',
+          ...getUserEmailHeader(),
+        },
         body: JSON.stringify({ query, session_id: sessionId }),
         signal,
       });
@@ -232,8 +245,18 @@ export const chatApi = {
     return response.data;
   },
 
+  createSession: async (title) => {
+    const response = await api.post('/chat/sessions', title ? { title } : {});
+    return response.data;
+  },
+
+  renameSession: async (sessionId, title) => {
+    const response = await api.put(`/chat/sessions/${sessionId}`, { title });
+    return response.data;
+  },
+
   getSessionMessages: async (sessionId) => {
-    const response = await api.get(`/chat/sessions/${sessionId}`);
+    const response = await api.get(`/chat/${sessionId}`);
     return response.data;
   }
 };
