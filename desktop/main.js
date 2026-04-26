@@ -208,3 +208,8 @@ app.on('window-all-closed', () => {
 app.on('quit', () => {
   if (backendProcess) kill(backendProcess.pid);
 });
+
+const { ipcMain, shell } = require('electron');
+ipcMain.on('open-external', (event, url) => {
+  shell.openExternal(url);
+});

@@ -31,7 +31,18 @@ class ChatMessageResponse(BaseModel):
     session_id: str
     role: str
     content: str
+    citations: list | None = None
     created_at: datetime
+
+    @field_validator("citations", mode="before")
+    @classmethod
+    def parse_citations(cls, v):
+        if isinstance(v, str):
+            try:
+                return json.loads(v)
+            except:
+                return []
+        return v
 
     @field_validator("id", mode="before")
     @classmethod
@@ -227,7 +238,7 @@ def ask_question(
                 yield {"event": "message", "data": json.dumps({"token": response_text, "session_id": session_id})}
                 try:
                     persist_fn = _build_persist_chat_messages(session_id, current_user.id)
-                    persist_fn(query, response_text, (time.perf_counter() - started_at) * 1000)
+                    persist_fn(query, response_text, None, (time.perf_counter() - started_at) * 1000)
                 except Exception as e:
                     print(f"Failed to save stream data: {e}")
 
@@ -271,7 +282,7 @@ def ask_question(
                 response_text = NO_RELEVANT_CONTENT_MESSAGE
                 yield {"event": "message", "data": json.dumps({"token": response_text, "session_id": session_id})}
                 try:
-                    persist_fn(query, response_text, (time.perf_counter() - started_at) * 1000)
+                    persist_fn(query, response_text, None, (time.perf_counter() - started_at) * 1000)
                 except Exception as e:
                     print(f"Failed to save stream data: {e}")
                 return
@@ -283,7 +294,7 @@ def ask_question(
 
             try:
                 persisted_answer = full_answer.strip() or "Not enough information"
-                persist_fn(query, persisted_answer, (time.perf_counter() - started_at) * 1000)
+                persist_fn(query, persisted_answer, serialized_chunks, (time.perf_counter() - started_at) * 1000)
             except Exception as e:
                 print(f"Failed to save stream data: {e}")
 
@@ -301,7 +312,7 @@ def ask_question(
 # ---------------------------------------------------------------------------
 
 def _build_persist_chat_messages(session_id: str, user_id: str):
-    def persist_chat_messages(user_query: str, assistant_response: str, response_time_ms: float | None = None):
+    def persist_chat_messages(user_query: str, assistant_response: str, citations: list | None = None, response_time_ms: float | None = None):
         save_db = SessionLocal()
         try:
             save_session = _get_owned_session(save_db, session_id, user_id)
@@ -321,6 +332,7 @@ def _build_persist_chat_messages(session_id: str, user_id: str):
                         session_id=session_id,
                         role="assistant",
                         content=assistant_response,
+                        citations=json.dumps(citations) if citations else None,
                     ),
                 ]
             )

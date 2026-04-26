@@ -1,5 +1,5 @@
 const { contextBridge, ipcRenderer } = require('electron');
 
 contextBridge.exposeInMainWorld('electronAPI', {
-  // Add any IPC bridges here if needed
+  openExternal: (url) => ipcRenderer.send('open-external', url)
 });

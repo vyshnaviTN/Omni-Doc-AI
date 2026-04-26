@@ -12,15 +12,15 @@ const api = axios.create({
 const ACTIVE_SESSION_KEY = 'omni-active-session';
 export const ACTIVE_SESSION_EVENT = 'omni-active-session-change';
 
-function getUserEmailHeader() {
-  const email = localStorage.getItem('omni-email');
-  return email ? { 'X-User-Email': email } : {};
+function getAuthHeader() {
+  const token = localStorage.getItem('omni-token');
+  return token ? { 'Authorization': `Bearer ${token}` } : {};
 }
 
 api.interceptors.request.use((config) => {
   config.headers = {
     ...(config.headers || {}),
-    ...getUserEmailHeader(),
+    ...getAuthHeader(),
   };
   return config;
 });
@@ -93,12 +93,38 @@ async function withRetry(fn, maxRetries = 3, delayMs = 1000) {
 
 // ── Auth API (stub — JWT disabled for testing) ─────────────────────────────────
 export const authApi = {
-  login: async () => ({ email: 'test@local' }),
-  register: async () => ({ email: 'test@local' }),
-  me: async () => ({ email: localStorage.getItem('omni-email') || 'test@local' }),
+  login: async (email, password) => {
+    const res = await api.post('/auth/login', { email, password });
+    localStorage.setItem('omni-token', res.data.access_token);
+    localStorage.setItem('omni-email', res.data.email);
+    return res.data;
+  },
+  googleLogin: async (id_token) => {
+    const res = await api.post('/auth/google', { id_token });
+    localStorage.setItem('omni-token', res.data.access_token);
+    localStorage.setItem('omni-email', res.data.email);
+    return res.data;
+  },
+  register: async (email, password) => {
+    const res = await api.post('/auth/register', { email, password });
+    localStorage.setItem('omni-token', res.data.access_token);
+    localStorage.setItem('omni-email', res.data.email);
+    return res.data;
+  },
+  me: async () => {
+    const res = await api.get('/auth/me');
+    return res.data;
+  },
+  getConfig: async () => {
+    const res = await api.get('/auth/config');
+    return res.data;
+  },
   logout: () => {
+    localStorage.removeItem('omni-token');
     localStorage.removeItem('omni-email');
+    localStorage.removeItem('omni-active-session');
     localStorage.removeItem('omni-chat-backup');
+    window.location.href = '/login';
   }
 };
 
@@ -134,9 +160,9 @@ export const documentApi = {
       return new Promise((resolve, reject) => {
         const xhr = new XMLHttpRequest();
         xhr.open('POST', `${API_BASE_URL}/documents/upload`);
-        const email = localStorage.getItem('omni-email');
-        if (email) {
-          xhr.setRequestHeader('X-User-Email', email);
+        const token = localStorage.getItem('omni-token');
+        if (token) {
+          xhr.setRequestHeader('Authorization', `Bearer ${token}`);
         }
 
         xhr.upload.onprogress = (event) => {
@@ -186,7 +212,7 @@ export const chatApi = {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          ...getUserEmailHeader(),
+          ...getAuthHeader(),
         },
         body: JSON.stringify({ query, session_id: sessionId }),
         signal,

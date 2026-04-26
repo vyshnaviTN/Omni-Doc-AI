@@ -1,5 +1,6 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { authApi } from '../api';
 // eslint-disable-next-line no-unused-vars
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -11,6 +12,79 @@ export default function LoginPage() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
+  const [googleInitialized, setGoogleInitialized] = useState(false);
+
+  useEffect(() => {
+    // Debug log to help user fix origin_mismatch
+    console.log("[Google Auth] Current Origin:", window.location.origin);
+    
+    // Prevent multiple initializations if script is already there
+    if (window.google?.accounts?.id) {
+      handleInitGoogle();
+      return;
+    }
+
+    const script = document.createElement('script');
+    script.src = "https://accounts.google.com/gsi/client";
+    script.async = true;
+    script.defer = true;
+    script.onload = handleInitGoogle;
+    document.body.appendChild(script);
+    
+    return () => {
+      if (document.body.contains(script)) {
+        document.body.removeChild(script);
+      }
+    };
+  }, []);
+
+  const handleInitGoogle = async () => {
+    try {
+      const config = await authApi.getConfig();
+      const clientId = config.google_client_id;
+      
+      if (clientId && !window._google_initialized) {
+        window.google?.accounts.id.initialize({
+          client_id: clientId,
+          callback: handleGoogleResponse,
+          ux_mode: 'popup',
+          auto_select: false,
+          itp_support: true
+        });
+
+        // Use the official Google Button renderer for better compatibility
+        const buttonDiv = document.getElementById('google-button-div');
+        if (buttonDiv) {
+          window.google?.accounts.id.renderButton(buttonDiv, {
+            theme: 'outline',
+            size: 'large',
+            shape: 'pill',
+            width: 380,
+            text: 'continue_with',
+            logo_alignment: 'left'
+          });
+        }
+
+        window._google_initialized = true;
+        setGoogleInitialized(true);
+      }
+    } catch (err) {
+      console.error("Failed to load auth config", err);
+    }
+  };
+
+  const handleGoogleResponse = async (response) => {
+    setLoading(true);
+    setError('');
+    try {
+      await authApi.googleLogin(response.credential);
+      navigate('/chat', { replace: true });
+    } catch (err) {
+      setError(err.userMessage || 'Google Login failed. Check your Console settings.');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -31,10 +105,14 @@ export default function LoginPage() {
 
     setLoading(true);
     try {
-      localStorage.setItem('omni-email', email);
+      if (tab === 'login') {
+        await authApi.login(email, password);
+      } else {
+        await authApi.register(email, password);
+      }
       navigate('/chat', { replace: true });
-    } catch {
-      setError('Something went wrong. Please try again.');
+    } catch (err) {
+      setError(err.userMessage || err.message || 'Authentication failed. Please check your credentials.');
     } finally {
       setLoading(false);
     }
@@ -158,6 +236,33 @@ export default function LoginPage() {
               )}
             </button>
           </form>
+
+          {/* Google Button - Using official renderer */}
+          <div 
+            id="google-button-div" 
+            className={`mt-6 transition-opacity duration-300 ${googleInitialized && !window.electronAPI ? 'opacity-100' : 'opacity-0 h-0 overflow-hidden'}`}
+          ></div>
+
+          {/* Electron Alternative */}
+          {window.electronAPI && googleInitialized && (
+            <div className="mt-8 p-4 bg-slate-50 rounded-2xl border border-slate-100">
+              <p className="text-[11px] text-slate-500 text-center mb-3 leading-relaxed">
+                Google Login is restricted in the Desktop app. Please use your email/password here, or open Omni-Doc in your browser.
+              </p>
+              <button
+                type="button"
+                onClick={() => window.electronAPI.openExternal('http://localhost:5173')}
+                className="w-full py-2.5 flex items-center justify-center gap-2 bg-white border border-slate-200 rounded-xl text-xs font-semibold text-indigo-600 hover:bg-indigo-50 hover:border-indigo-100 transition-all duration-200"
+              >
+                <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
+                  <polyline points="15 3 21 3 21 9" />
+                  <line x1="10" y1="14" x2="21" y2="3" />
+                </svg>
+                Launch in Browser to Login
+              </button>
+            </div>
+          )}
         </div>
 
         <p className="text-center text-xs text-slate-400 mt-5">

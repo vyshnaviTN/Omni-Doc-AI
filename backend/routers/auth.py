@@ -9,6 +9,12 @@ from pydantic import BaseModel
 from jose import JWTError, jwt
 from database.core import get_db
 from database import models
+from fastapi.security import OAuth2PasswordBearer
+from sqlalchemy.orm import Session
+from pydantic import BaseModel
+from jose import JWTError, jwt
+from database.core import get_db
+from database import models
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
 
@@ -16,6 +22,8 @@ router = APIRouter(prefix="/api/auth", tags=["auth"])
 SECRET_KEY = os.getenv("SECRET_KEY", "omni-doc-fallback-secret-change-in-prod")
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24 * 7  # 7 days
+GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID", "")
+
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/login", auto_error=False)
 
@@ -28,6 +36,10 @@ class RegisterRequest(BaseModel):
 class LoginRequest(BaseModel):
     email: str
     password: str
+
+
+class GoogleLoginRequest(BaseModel):
+    id_token: str
 
 
 class TokenResponse(BaseModel):
@@ -132,12 +144,11 @@ def get_current_user(
     if token_user:
         return token_user
 
-    header_user = _get_user_from_header(request, db)
-    if header_user:
-        return header_user
-
-    # --- DEV BYPASS: allow unauthenticated access for local testing ---
-    return _get_or_create_local_user(db)
+    raise HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Not authenticated",
+        headers={"WWW-Authenticate": "Bearer"},
+    )
 
 
 @router.post("/register", response_model=TokenResponse)
@@ -172,6 +183,50 @@ def login(request: LoginRequest, db: Session = Depends(get_db)):
     return {"access_token": token, "token_type": "bearer", "email": user.email}
 
 
+@router.post("/google", response_model=TokenResponse)
+def google_login(request: GoogleLoginRequest, db: Session = Depends(get_db)):
+    from google.oauth2 import id_token
+    from google.auth.transport import requests
+
+    if not GOOGLE_CLIENT_ID:
+        raise HTTPException(status_code=500, detail="Google Login is not configured on this server.")
+
+    try:
+        # Verify the ID token from the frontend
+        id_info = id_token.verify_oauth2_token(request.id_token, requests.Request(), GOOGLE_CLIENT_ID)
+
+        # ID token is valid. Get user info.
+        email = id_info.get("email")
+        if not email:
+            raise HTTPException(status_code=400, detail="Google token missing email")
+
+        # Get or create user (no password needed for Google users)
+        user = db.query(models.User).filter(models.User.email == email).first()
+        if not user:
+            user = models.User(
+                id=str(uuid.uuid4()),
+                email=email,
+                hashed_password=hash_password(str(uuid.uuid4())), # Random password for security
+            )
+            db.add(user)
+            db.commit()
+            db.refresh(user)
+
+        token = create_access_token({"sub": user.email})
+        return {"access_token": token, "token_type": "bearer", "email": user.email}
+
+    except ValueError:
+        # Invalid token
+        raise HTTPException(status_code=401, detail="Invalid Google token")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Google Auth Error: {str(e)}")
+
+
 @router.get("/me")
 def me(current_user: models.User = Depends(get_current_user)):
     return {"id": current_user.id, "email": current_user.email, "created_at": current_user.created_at}
+
+
+@router.get("/config")
+def get_config():
+    return {"google_client_id": GOOGLE_CLIENT_ID}

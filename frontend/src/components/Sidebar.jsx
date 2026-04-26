@@ -1,7 +1,7 @@
 import { NavLink, useNavigate, useLocation } from 'react-router-dom';
-import { MessageSquare, FileText, BarChart2, History, Plus, ChevronRight } from 'lucide-react';
+import { MessageSquare, FileText, BarChart2, History, Plus, ChevronRight, LogOut } from 'lucide-react';
 import { useState, useEffect, useRef } from 'react';
-import { documentApi, chatApi, getActiveSessionId, setActiveSessionId, ACTIVE_SESSION_EVENT } from '../api';
+import { documentApi, chatApi, getActiveSessionId, setActiveSessionId, ACTIVE_SESSION_EVENT, authApi } from '../api';
 import clsx from 'clsx';
 
 function groupSessionsByDate(sessions) {
@@ -203,8 +203,8 @@ export default function Sidebar() {
         </section>
       </div>
 
-      {/* User Profile */}
-      <div className="p-3 border-t border-slate-100 shrink-0 bg-slate-50/50">
+      {/* User Profile & Logout */}
+      <div className="p-3 border-t border-slate-100 shrink-0 bg-slate-50/50 space-y-2">
         <div className="flex items-center gap-2.5 px-3 py-2 bg-white rounded-xl border border-slate-100 shadow-sm">
           <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white font-bold text-xs shrink-0">
             {initial}
@@ -214,6 +214,13 @@ export default function Sidebar() {
             <div className="text-[10px] text-emerald-500 font-bold uppercase tracking-widest">Active</div>
           </div>
         </div>
+        <button
+          onClick={() => authApi.logout()}
+          className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold text-rose-500 hover:bg-rose-50 transition-all border border-transparent hover:border-rose-100"
+        >
+          <LogOut className="w-3.5 h-3.5" />
+          Log Out
+        </button>
       </div>
     </aside>
   );

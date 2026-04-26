@@ -3,6 +3,15 @@ import Sidebar from './components/Sidebar';
 import ChatPage from './pages/ChatPage';
 import DocumentsPage from './pages/DocumentsPage';
 import AnalyticsPage from './pages/AnalyticsPage';
+import LoginPage from './pages/LoginPage';
+
+function ProtectedRoute({ children }) {
+  const token = localStorage.getItem('omni-token');
+  if (!token) {
+    return <Navigate to="/login" replace />;
+  }
+  return children;
+}
 
 function AppLayout() {
   return (
@@ -10,9 +19,9 @@ function AppLayout() {
       <Sidebar className="shrink-0" />
       <main className="flex-1 flex min-w-0 overflow-hidden relative bg-[#F8FAFC]">
         <Routes>
-          <Route path="/chat" element={<ChatPage />} />
-          <Route path="/documents" element={<DocumentsPage />} />
-          <Route path="/analytics" element={<AnalyticsPage />} />
+          <Route path="/chat" element={<ProtectedRoute><ChatPage /></ProtectedRoute>} />
+          <Route path="/documents" element={<ProtectedRoute><DocumentsPage /></ProtectedRoute>} />
+          <Route path="/analytics" element={<ProtectedRoute><AnalyticsPage /></ProtectedRoute>} />
           <Route path="/" element={<Navigate to="/chat" replace />} />
         </Routes>
       </main>
@@ -24,6 +33,7 @@ function App() {
   return (
     <BrowserRouter>
       <Routes>
+        <Route path="/login" element={<LoginPage />} />
         <Route path="/*" element={<AppLayout />} />
       </Routes>
     </BrowserRouter>

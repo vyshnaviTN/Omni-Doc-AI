@@ -140,31 +140,50 @@ def _extract_text_via_vlm(img: Image.Image, prompt_type: str = "document") -> st
         # 2. Initialize VLM (moondream)
         vision_llm = ChatOllama(model="moondream", temperature=0.0)
 
-        # 3. Construct Prompt
-        prompt_text = (
-            "You are an expert OCR and handwriting recognition assistant. "
-            "Extract ALL text exactly from this image. Do NOT add notes, headers, or explanations. "
-            "If the text is handwritten, do your best to transcribe every word accurately."
-        )
+        # 3. Construct Prompt (Simplified for moondream)
+        prompt_text = "Read all the text in this image and transcribe it exactly."
         
-        # 4. Invoke
-        message = HumanMessage(
-            content=[
-                {"type": "text", "text": prompt_text},
-                {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{img_base64}"}},
-            ]
-        )
+        # 4. Process in slices to prevent moondream from failing on dense pages
+        w, h = img.size
+        # If the image is tall (like a full page), split into 3 horizontal slices
+        num_slices = 3 if h > w else 1
+        slice_height = h // num_slices
         
-        print(f"[VLM] Sending image to moondream...")
+        extracted_text = []
+        print(f"[VLM] Sending image to moondream in {num_slices} slice(s)...")
+        
         import time
         start = time.time()
-        res = vision_llm.invoke([message])
+        
+        for i in range(num_slices):
+            top = i * slice_height
+            bottom = h if i == num_slices - 1 else (i + 1) * slice_height
+            patch = img.crop((0, top, w, bottom))
+            
+            buffered = BytesIO()
+            patch.save(buffered, format="JPEG", quality=85)
+            img_base64 = base64.b64encode(buffered.getvalue()).decode("utf-8")
+            
+            message = HumanMessage(
+                content=[
+                    {"type": "text", "text": prompt_text},
+                    {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{img_base64}"}},
+                ]
+            )
+            
+            try:
+                res = vision_llm.invoke([message])
+                text = res.content.strip()
+                if text:
+                    extracted_text.append(text)
+            except Exception as e:
+                print(f"[VLM] Error on slice {i+1}: {e}")
+                
         elapsed = time.time() - start
+        final_text = "\n\n".join(extracted_text).strip()
+        print(f"[VLM] Extraction complete in {elapsed:.2f}s. Extracted {len(final_text)} chars.")
         
-        text = res.content.strip()
-        print(f"[VLM] Extraction complete in {elapsed:.2f}s. Extracted {len(text)} chars.")
-        
-        return text
+        return final_text
     except Exception as e:
         print(f"[VLM] Error during vision extraction: {e}")
         return ""

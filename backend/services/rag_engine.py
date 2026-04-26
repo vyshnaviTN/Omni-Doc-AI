@@ -168,9 +168,14 @@ class RagEngine:
         
         logger.debug("Retrieving chunks for query '%s' in session '%s'", query, session_id)
 
-        search_filter = {"session_id": session_id}
+        search_filter = {
+            "$and": [
+                {"session_id": session_id},
+                {"user_id": user_id}
+            ]
+        }
         if selected_doc_id:
-            search_filter["document_id"] = selected_doc_id
+            search_filter["$and"].append({"document_id": selected_doc_id})
             logger.debug("Applying strict filter: document_id == %s", selected_doc_id)
 
         try:
@@ -266,7 +271,7 @@ class RagEngine:
         context_parts = []
         for i, c in enumerate(chunks[:MAX_CONTEXT_CHUNKS]):
             truncated_content = c.page_content[:900]
-            context_parts.append(f"--- Passage {i+1} ---\n{truncated_content}")
+            context_parts.append(f"--- Passage {i+1} (Source: {c.metadata.get('source', 'Unknown')}, Page: {c.metadata.get('page', 'N/A')}) ---\n{truncated_content}")
 
         context_str = "\n\n".join(context_parts)
 
@@ -274,6 +279,7 @@ class RagEngine:
             "You are a strict document-based assistant.\n\n"
             "Rules:\n\n"
             "* Answer ONLY using provided context\n"
+            "* Use inline citations in the format [1], [2], etc., referring to the Passage number.\n"
             "* Do NOT guess\n"
             "* If unclear -> say 'Not enough information'\n"
             "* Provide complete, clear explanation\n"
