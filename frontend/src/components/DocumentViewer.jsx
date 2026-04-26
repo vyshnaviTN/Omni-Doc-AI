@@ -42,10 +42,15 @@ export default function DocumentViewer({ docId, filename, initialPage = 1, highl
     };
   }, [docId]);
 
-  // URL for the PDF with page fragment and search highlights
-  const searchFragment = highlightText 
-    ? `&search=${encodeURIComponent(highlightText.substring(0, 50))}` 
+  // Clean and prepare the search fragment
+  const cleanHighlight = highlightText
+    ? highlightText.replace(/\s+/g, ' ').trim().substring(0, 100)
     : '';
+
+  const searchFragment = cleanHighlight 
+    ? `&search="${encodeURIComponent(cleanHighlight)}"` 
+    : '';
+    
   const pdfUrl = blobUrl ? `${blobUrl}#page=${initialPage || 1}${searchFragment}&toolbar=0&navpanes=0` : '';
 
   return (
