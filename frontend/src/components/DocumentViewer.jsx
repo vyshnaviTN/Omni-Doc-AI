@@ -42,16 +42,20 @@ export default function DocumentViewer({ docId, filename, initialPage = 1, highl
     };
   }, [docId]);
 
-  // Clean and prepare the search fragment
+  // Clean and prepare the search fragment for better native matching
   const cleanHighlight = highlightText
-    ? highlightText.replace(/\s+/g, ' ').trim().substring(0, 100)
+    ? highlightText.replace(/[^\w\s]/g, '').replace(/\s+/g, ' ').trim().substring(0, 35)
     : '';
 
-  const searchFragment = cleanHighlight 
-    ? `&search="${encodeURIComponent(cleanHighlight)}"` 
-    : '';
-    
-  const pdfUrl = blobUrl ? `${blobUrl}#page=${initialPage || 1}${searchFragment}&toolbar=0&navpanes=0` : '';
+  // Order matters for some PDF viewers: search then page
+  const fragments = [
+    cleanHighlight ? `search=${encodeURIComponent(cleanHighlight)}` : '',
+    `page=${initialPage || 1}`,
+    'toolbar=0',
+    'navpanes=0'
+  ].filter(Boolean).join('&');
+
+  const pdfUrl = blobUrl ? `${blobUrl}#${fragments}` : '';
 
   return (
     <div className="flex flex-col h-full bg-slate-900 overflow-hidden">

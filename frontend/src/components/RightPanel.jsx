@@ -218,7 +218,7 @@ export default function RightPanel({ activeCitations, onClose, highlightedIndex 
               setIsResizing(true);
             }}
             className={clsx(
-              "absolute left-0 top-0 bottom-0 w-3 cursor-col-resize z-[70] flex items-center justify-center transition-colors",
+              "absolute left-0 top-0 bottom-0 w-3 cursor-col-resize z-[100] flex items-center justify-center transition-colors",
               isResizing ? "bg-indigo-500/20" : "hover:bg-indigo-500/10"
             )}
           >
@@ -227,6 +227,11 @@ export default function RightPanel({ activeCitations, onClose, highlightedIndex 
               isResizing ? "bg-indigo-400" : "bg-slate-700 group-hover:bg-indigo-400"
             )} />
           </div>
+
+          {/* Resizer Overlay Shield — prevents iframe from stealing mouse events during drag */}
+          {isResizing && (
+            <div className="absolute inset-0 z-[90] cursor-col-resize pointer-events-auto bg-transparent" />
+          )}
 
           {viewMode === 'list' ? (
             <>
