@@ -1,165 +1,127 @@
-🚀 Omni-Doc — Offline AI Document Intelligence Engine
+# 🚀 Omni-Doc AI
+### *The Ultimate Offline Document Intelligence Engine*
 
-An enterprise-grade, fully offline AI system that understands, searches, and answers questions from your documents using Retrieval-Augmented Generation (RAG).
+[![FastAPI](https://img.shields.io/badge/FastAPI-005571?style=for-the-badge&logo=fastapi)](https://fastapi.tiangolo.com/)
+[![React](https://img.shields.io/badge/React-20232A?style=for-the-badge&logo=react&logoColor=61DAFB)](https://reactjs.org/)
+[![Ollama](https://img.shields.io/badge/Ollama-Offline%20LLM-white?style=for-the-badge&logo=ollama)](https://ollama.com/)
+[![ChromaDB](https://img.shields.io/badge/ChromaDB-Vector%20Storage-orange?style=for-the-badge&logo=chroma)](https://www.trychroma.com/)
 
-🧠 Overview
+An enterprise-grade, **fully offline** AI system designed to understand, search, and answer complex questions from your documents using a high-precision Retrieval-Augmented Generation (RAG) pipeline.
 
-Omni-Doc is a powerful AI-driven document assistant that allows users to upload PDFs, images, and handwritten notes, and ask intelligent questions about their content.
+---
 
-Unlike traditional LLM apps, Omni-Doc ensures:
+## 🏗️ System Architecture
 
-✅ No hallucinations (answers grounded in documents)
+Omni-Doc uses a multi-layered architecture designed for speed, privacy, and accuracy.
 
-✅ Full offline capability (no API keys required)
+```mermaid
+graph TD
+    subgraph Frontend [React / Electron Desktop]
+        UI[Chat Interface] --> DP[PDF Inspector / Viewer]
+        UI --> US[Upload System]
+    end
 
-✅ Source-backed responses with citations
+    subgraph Backend [FastAPI Service]
+        US --> DP_SRV[Document Processor]
+        DP_SRV --> OCR[VLM OCR - Moondream]
+        OCR --> CHK[Semantic Chunking]
+        CHK --> EMB[E5-Small Embeddings]
+        EMB --> VDB[(ChromaDB)]
+        
+        UI --> QRY[Query Rewriter]
+        QRY --> RET[Hybrid Retriever]
+        RET --> VDB
+        RET --> LLM[Ollama - Mistral/Phi]
+        LLM --> UI
+    end
 
-✨ Key Features
-📄 Document Intelligence
+    subgraph Storage [Local Storage]
+        VDB --> DISK[Encrypted Local Disk]
+        DP_SRV --> FILES[Original PDF Storage]
+    end
+```
 
-Upload PDF, TXT, Markdown, and image files
+---
 
-Automatic text extraction and processing
+## ✨ Standout Features
 
-OCR support for handwritten and scanned documents
+### 🔍 Integrated Document Inspector
+Unlike generic chat apps, Omni-Doc provides a **synchronized dual-pane view**. When the AI cites a source, you can click the citation to open the exact PDF page in the integrated inspector, complete with page-specific navigation.
 
-🤖 AI-Powered Q&A (RAG)
+### 🧠 VLM-Powered OCR (Vision Language Model)
+We don't just use standard OCR. Omni-Doc implements a **3-strip horizontal slicing strategy** using `moondream` via Ollama. This allows the system to process dense, handwritten notes and complex layouts that traditional OCR often misses.
 
-Retrieval-Augmented Generation pipeline
+### 🔐 Secure Session Isolation
+Every chat session is a private workspace. Documents uploaded to "Session A" are never visible or retrievable in "Session B," ensuring perfect multi-tenant privacy on your local machine.
 
-Answers based only on uploaded documents
+### ⚡ Hybrid Search Performance
+- **Semantic Search**: Vector embeddings for conceptual understanding.
+- **BM25 Keyword Search**: High-precision term matching.
+- **Query Rewriting**: The AI refines your questions to improve search results.
 
-Multi-document reasoning
+---
 
-🔍 Hybrid Search (Advanced)
+## 🛠️ Tech Stack
 
-Semantic search (vector embeddings)
+- **Frontend**: React 18, Tailwind CSS, Framer Motion, Lucide Icons.
+- **Desktop Engine**: Vite + Electron (for native offline experience).
+- **Backend API**: FastAPI (Python 3.11+).
+- **RAG Orchestration**: LangChain & ChromaDB.
+- **AI Models**: 
+  - **LLM**: `Mistral` / `Phi-3` (via Ollama).
+  - **VLM**: `Moondream2` (for high-accuracy OCR).
+  - **Embeddings**: `intfloat/e5-small-v2` (Local).
 
-Keyword search (BM25)
+---
 
-High-accuracy retrieval system
+## ⚙️ Installation & Setup (Windows)
 
-📌 Citations & Source Transparency
-
-Every answer includes:
-
-Document name
-
-Page number
-
-Highlighted source snippet
-
-💬 Chat System with Memory
-
-Persistent chat history
-
-Continue previous conversations
-
-Multi-session support
-
-⚡ Performance Optimizations
-
-Semantic caching
-
-Fast local embeddings (MiniLM)
-
-Optimized chunking and retrieval
-
-🖥️ Fully Offline AI
-
-Runs on local machine using Ollama
-
-No internet required
-
-No API costs
-
-🏗️ Architecture
-Frontend (React / Electron)
-        ↓
-Backend (FastAPI)
-        ↓
-Vector DB (ChromaDB)
-        ↓
-Local LLM (Ollama - phi)
-🛠️ Tech Stack
-Frontend
-
-React (Vite)
-
-CSS / Tailwind (customizable)
-
-Framer Motion (animations)
-
-Backend
-
-FastAPI
-
-LangChain
-
-ChromaDB (Vector DB)
-
-AI & ML
-
-Ollama (Local LLM - phi)
-
-Sentence Transformers (Embeddings)
-
-Tesseract OCR (Handwritten text recognition)
-
-Desktop App
-
-Electron (Offline packaging)
-
-⚙️ Installation & Setup (Windows)
-1️⃣ Clone Repository
-git clone https://github.com/vyshnaviTN/Omni-Doc-AI.git
-cd omni-doc
-2️⃣ Install Ollama
-
-Download and install Ollama:
-👉 https://ollama.com
-
-Run models:
-ollama run phi
+### 1️⃣ Prepare AI Models (Ollama)
+Download and install [Ollama](https://ollama.com). Then, pull the required models:
+```powershell
+ollama pull phi
 ollama pull moondream
-3️⃣ Backend Setup
+```
+
+### 2️⃣ Backend Configuration
+```bash
 cd backend
 python -m venv venv
 venv\Scripts\activate
 pip install -r requirements.txt
-
-# Ensure Tesseract OCR is installed on your system:
-# Download from: https://github.com/UB-Mannheim/tesseract/wiki
-
+# Copy .env.example to .env and configure local paths
 python main.py
-4️⃣ Frontend Setup
+```
+
+### 3️⃣ Frontend Development
+```bash
 cd frontend
 npm install
 npm run dev
+```
 
-Open:
+---
 
-http://localhost:5173
-🧪 Usage
+## 📈 Data Flow Lifecycle
 
-Upload a document (PDF/Image)
+1. **Ingestion**: File is sliced into strips -> VLM extracts text -> Recursive chunking.
+2. **Indexing**: Chunks are embedded into 384-dimensional vectors -> Saved to ChromaDB with metadata (Page #, Source ID).
+3. **Retrieval**: User query is rewritten -> Hybrid search finds top 5 relevant chunks -> Context is pruned.
+4. **Generation**: LLM generates answer with `[N]` citations based *only* on retrieved context.
 
-Ask questions like:
+---
 
-“Summarize this document”
+## 📊 Roadmap
+- [x] Streaming LLM Responses
+- [x] Integrated PDF Page Viewer
+- [x] VLM-based OCR Fallback
+- [ ] Multi-Modal Image Chat
+- [ ] Exportable Research Reports
+- [ ] Dark Mode UI Theme
 
-“What is finance?”
+---
 
-View answers with citations and sources
+## 📄 License
+Distributed under the MIT License. See `LICENSE` for more information.
 
-📊 Future Enhancements
-
-🔄 Streaming responses
-
-🧠 Query rewriting
-
-📈 Analytics dashboard
-
-🔐 Authentication system
-
-☁️ Cloud + Offline hybrid mode
+**Built with ❤️ for Privacy and Intelligence.**
