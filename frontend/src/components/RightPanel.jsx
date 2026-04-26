@@ -145,6 +145,8 @@ export default function RightPanel({ activeCitations, onClose, highlightedIndex 
   const [viewMode, setViewMode] = useState('list'); // 'list' | 'document'
   const [inspectCitation, setInspectCitation] = useState(null);
   const [isMaximized, setIsMaximized] = useState(false);
+  const [panelWidth, setPanelWidth] = useState(400);
+  const [isResizing, setIsResizing] = useState(false);
   const scrollRef = useRef(null);
 
   // Sync highlighted index from parent (when [1] badge is clicked)
@@ -162,6 +164,27 @@ export default function RightPanel({ activeCitations, onClose, highlightedIndex 
     setInspectCitation(null);
   }, [activeCitations]);
 
+  // Handle resizing
+  useEffect(() => {
+    if (!isResizing) return;
+
+    const handleMouseMove = (e) => {
+      const newWidth = window.innerWidth - e.clientX;
+      if (newWidth > 320 && newWidth < window.innerWidth * 0.8) {
+        setPanelWidth(newWidth);
+      }
+    };
+
+    const handleMouseUp = () => setIsResizing(false);
+
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', handleMouseUp);
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [isResizing]);
+
   const handleViewDocument = (citation) => {
     setInspectCitation(citation);
     setViewMode('document');
@@ -173,17 +196,28 @@ export default function RightPanel({ activeCitations, onClose, highlightedIndex 
         <motion.aside
           initial={{ width: 0, opacity: 0 }}
           animate={{ 
-            width: isMaximized ? '60%' : 400, 
+            width: isMaximized ? '75%' : panelWidth, 
             opacity: 1 
           }}
           exit={{ width: 0, opacity: 0 }}
-          transition={{ duration: 0.4, ease: [0.4, 0, 0.2, 1] }}
+          transition={isResizing ? { duration: 0 } : { duration: 0.4, ease: [0.4, 0, 0.2, 1] }}
           className="border-l border-slate-700/50 source-panel-bg flex flex-col h-full shrink-0 overflow-hidden relative z-40 shadow-2xl"
         >
+          {/* Resize Handle */}
+          <div 
+            onMouseDown={() => setIsResizing(true)}
+            className={clsx(
+              "absolute left-0 top-0 bottom-0 w-1.5 cursor-col-resize z-50 group transition-colors",
+              isResizing ? "bg-indigo-500" : "hover:bg-indigo-500/30"
+            )}
+          >
+            <div className="absolute left-1/2 -translate-x-1/2 top-1/2 -translate-y-1/2 h-8 w-1 rounded-full bg-slate-700 group-hover:bg-indigo-400 transition-colors" />
+          </div>
+
           {viewMode === 'list' ? (
             <>
               {/* Header */}
-              <div className="h-14 flex items-center justify-between px-5 border-b border-slate-700/50 bg-slate-800/60 backdrop-blur-md shrink-0">
+              <div className="h-14 flex items-center justify-between px-5 border-b border-slate-700/50 bg-slate-800/60 backdrop-blur-md shrink-0 pl-6">
                 <div className="flex items-center gap-2.5">
                   <div className="p-1.5 bg-indigo-500/15 rounded-lg border border-indigo-500/20">
                     <Layers className="w-3.5 h-3.5 text-indigo-400" />
@@ -197,7 +231,7 @@ export default function RightPanel({ activeCitations, onClose, highlightedIndex 
                   <button
                     onClick={() => setIsMaximized(!isMaximized)}
                     className="p-1.5 text-slate-500 hover:text-slate-300 hover:bg-slate-700/60 rounded-lg transition-all"
-                    title={isMaximized ? "Minimize" : "Maximize Inspector"}
+                    title={isMaximized ? "Minimize" : "Full Screen View"}
                   >
                     {isMaximized ? <Minimize2 className="w-3.5 h-3.5" /> : <Maximize2 className="w-3.5 h-3.5" />}
                   </button>
@@ -212,7 +246,7 @@ export default function RightPanel({ activeCitations, onClose, highlightedIndex 
               </div>
 
               {/* Source cards */}
-              <div ref={scrollRef} className="flex-1 overflow-y-auto p-4 space-y-3 custom-scrollbar bg-slate-900/20">
+              <div ref={scrollRef} className="flex-1 overflow-y-auto p-4 space-y-3 custom-scrollbar bg-slate-900/20 pl-6">
                 {activeCitations.map((citation, idx) => (
                   <SidebarSourceCard
                     key={idx}
@@ -226,18 +260,19 @@ export default function RightPanel({ activeCitations, onClose, highlightedIndex 
               </div>
 
               {/* Footer hint */}
-              <div className="px-5 py-3 border-t border-slate-700/50 bg-slate-800/40 shrink-0">
+              <div className="px-5 py-3 border-t border-slate-700/50 bg-slate-800/40 shrink-0 pl-6">
                 <p className="text-[10px] text-slate-600 text-center font-medium italic">
-                  Select a source to inspect context or click "Inspect Document" for full view
+                  Drag the left edge to resize • Click "Inspect Document" for high-precision view
                 </p>
               </div>
             </>
           ) : (
-            <div className="flex-1 flex flex-col min-h-0 bg-slate-900">
+            <div className="flex-1 flex flex-col min-h-0 bg-slate-900 pl-1.5">
               <DocumentViewer 
-                docId={inspectCitation.doc_id || inspectCitation.source} // Backend now supports filename lookup fallback
+                docId={inspectCitation.doc_id || inspectCitation.source}
                 filename={inspectCitation.source}
                 initialPage={inspectCitation.page}
+                highlightText={inspectCitation.content || inspectCitation.excerpt} // Pass highlight text for PDF search
                 onBack={() => setViewMode('list')}
               />
             </div>

@@ -7,7 +7,7 @@ import clsx from 'clsx';
  * DocumentViewer: An integrated PDF viewer for the Inspector panel.
  * Uses native iframe viewing with blob URL for authenticated access.
  */
-export default function DocumentViewer({ docId, filename, initialPage = 1, onBack }) {
+export default function DocumentViewer({ docId, filename, initialPage = 1, highlightText = '', onBack }) {
   const [zoom, setZoom] = useState(100);
   const [rotation, setRotation] = useState(0);
   const [blobUrl, setBlobUrl] = useState(null);
@@ -42,8 +42,11 @@ export default function DocumentViewer({ docId, filename, initialPage = 1, onBac
     };
   }, [docId]);
 
-  // URL for the PDF with page fragment
-  const pdfUrl = blobUrl ? `${blobUrl}#page=${initialPage || 1}&toolbar=0&navpanes=0` : '';
+  // URL for the PDF with page fragment and search highlights
+  const searchFragment = highlightText 
+    ? `&search=${encodeURIComponent(highlightText.substring(0, 50))}` 
+    : '';
+  const pdfUrl = blobUrl ? `${blobUrl}#page=${initialPage || 1}${searchFragment}&toolbar=0&navpanes=0` : '';
 
   return (
     <div className="flex flex-col h-full bg-slate-900 overflow-hidden">
