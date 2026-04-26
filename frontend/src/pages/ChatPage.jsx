@@ -9,7 +9,6 @@ import { useSearchParams, useNavigate } from 'react-router-dom';
 import { useDropzone } from 'react-dropzone';
 import RightPanel from '../components/RightPanel';
 import UploadStatusPanel from '../components/UploadStatusPanel';
-import PdfPreviewModal from '../components/PdfPreviewModal';
 import { ToastContainer, useToast } from '../components/Toast';
 
 // ── Thinking Indicator ───────────────────────────────────────────────────────
@@ -65,7 +64,7 @@ function MarkdownWithRefs({ content, onRefClick, isStreaming }) {
 }
 
 // ── Compact Inline Source Card ────────────────────────────────────────────────
-function InlineSourceCard({ citation, index }) {
+function InlineSourceCard({ citation, index, onRefClick }) {
   const [expanded, setExpanded] = useState(false);
 
   return (
@@ -100,10 +99,16 @@ function InlineSourceCard({ citation, index }) {
             exit={{ height: 0, opacity: 0 }}
             transition={{ duration: 0.2 }}
           >
-            <div className="px-3 pb-3">
+            <div className="px-3 pb-3 space-y-2">
               <div className="text-xs text-slate-600 leading-relaxed bg-white p-2.5 rounded-lg border border-slate-100 max-h-32 overflow-y-auto custom-scrollbar">
                 {citation.content || 'No content available.'}
               </div>
+              <button
+                onClick={() => onRefClick?.(index)}
+                className="w-full py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-600 text-[10px] font-bold uppercase tracking-wider rounded-lg transition-all border border-indigo-100"
+              >
+                Inspect Document
+              </button>
             </div>
           </motion.div>
         )}
@@ -234,9 +239,7 @@ export default function ChatPage() {
   const [showSidebar, setShowSidebar] = useState(false);
   const [highlightedSourceIndex, setHighlightedSourceIndex] = useState(null);
 
-  // Workspace Isolation & Preview state
   const [activeUploads, setActiveUploads] = useState([]);
-  const [previewDoc, setPreviewDoc] = useState(null); // {id, filename}
   const [isDragOverChat, setIsDragOverChat] = useState(false);
 
   // Toast
@@ -270,7 +273,12 @@ export default function ChatPage() {
     setActiveSessionId(nextSessionId);
     chatApi.getSessionMessages(nextSessionId).then(msgs => {
       if (msgs && msgs.length > 0) {
-        setMessages(msgs.map(m => ({ id: m.id.toString(), role: m.role, content: m.content, citations: m.citations || [] })));
+        setMessages(msgs.map(m => ({ 
+          id: m.id.toString(), 
+          role: m.role === 'assistant' ? 'ai' : m.role, // Normalize for UI
+          content: m.content, 
+          citations: m.citations || [] 
+        })));
       } else {
         setMessages([
           { id: '1', role: 'ai', content: 'Hello! I am Omni-Doc. Ask me anything about your uploaded documents.' }
@@ -312,7 +320,11 @@ export default function ChatPage() {
         filename: file.name, 
         status: 'processing', 
         progress: 0,
-        onPreview: (u) => setPreviewDoc({ id: u.docId, filename: u.filename })
+        onPreview: (u) => {
+          window.dispatchEvent(new CustomEvent('omni-preview-doc', { 
+            detail: { id: u.docId, filename: u.filename } 
+          }));
+        }
       };
       
       setActiveUploads(prev => [newUpload, ...prev]);
@@ -546,7 +558,7 @@ export default function ChatPage() {
                           ? 'bg-gradient-to-br from-indigo-500 to-blue-600 text-white rounded-2xl rounded-tr-md shadow-sm'
                           : 'ai-answer-card rounded-2xl rounded-tl-md'
                       )}>
-                        {msg.role === 'ai' ? (
+                        {(msg.role === 'ai' || msg.role === 'assistant') ? (
                           <>
                             {msg.content && !msg.isStreaming && (
                               <div className="flex items-center gap-1.5 mb-2 pb-1.5 border-b border-slate-100">
@@ -566,7 +578,7 @@ export default function ChatPage() {
                         )}
                       </div>
 
-                      {msg.role === 'ai' && msg.citations && msg.citations.length > 0 && !msg.isStreaming && (
+                      {(msg.role === 'ai' || msg.role === 'assistant') && msg.citations && msg.citations.length > 0 && !msg.isStreaming && (
                         <motion.div
                           initial={{ opacity: 0, y: 4 }}
                           animate={{ opacity: 1, y: 0 }}
@@ -583,7 +595,12 @@ export default function ChatPage() {
                             </button>
                           </div>
                           {msg.citations.slice(0, 3).map((citation, cidx) => (
-                            <InlineSourceCard key={cidx} citation={citation} index={cidx} />
+                            <InlineSourceCard 
+                              key={cidx} 
+                              citation={citation} 
+                              index={cidx} 
+                              onRefClick={handleRefClick} 
+                            />
                           ))}
                           {msg.citations.length > 3 && (
                             <button
@@ -658,12 +675,6 @@ export default function ChatPage() {
         onClear={() => setActiveUploads([])} 
       />
 
-      <PdfPreviewModal
-        isOpen={!!previewDoc}
-        onClose={() => setPreviewDoc(null)}
-        docId={previewDoc?.id}
-        filename={previewDoc?.filename}
-      />
     </div>
   );
 }

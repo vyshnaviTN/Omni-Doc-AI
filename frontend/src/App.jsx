@@ -4,6 +4,8 @@ import ChatPage from './pages/ChatPage';
 import DocumentsPage from './pages/DocumentsPage';
 import AnalyticsPage from './pages/AnalyticsPage';
 import LoginPage from './pages/LoginPage';
+import PdfPreviewModal from './components/PdfPreviewModal';
+import { useState, useEffect } from 'react';
 
 function ProtectedRoute({ children }) {
   const token = localStorage.getItem('omni-token');
@@ -14,6 +16,14 @@ function ProtectedRoute({ children }) {
 }
 
 function AppLayout() {
+  const [previewDoc, setPreviewDoc] = useState(null);
+
+  useEffect(() => {
+    const handlePreview = (e) => setPreviewDoc(e.detail);
+    window.addEventListener('omni-preview-doc', handlePreview);
+    return () => window.removeEventListener('omni-preview-doc', handlePreview);
+  }, []);
+
   return (
     <div className="flex h-screen w-full bg-[#F8FAFC] overflow-hidden text-slate-800">
       <Sidebar className="shrink-0" />
@@ -25,6 +35,13 @@ function AppLayout() {
           <Route path="/" element={<Navigate to="/chat" replace />} />
         </Routes>
       </main>
+
+      <PdfPreviewModal
+        isOpen={!!previewDoc}
+        onClose={() => setPreviewDoc(null)}
+        docId={previewDoc?.id}
+        filename={previewDoc?.filename}
+      />
     </div>
   );
 }

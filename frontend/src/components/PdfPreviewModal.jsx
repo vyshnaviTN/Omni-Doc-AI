@@ -1,13 +1,42 @@
-import { X, Maximize2, Minimize2, ExternalLink, Download } from 'lucide-react';
+import { X, Maximize2, Minimize2, ExternalLink, Download, Loader2, AlertCircle } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { documentApi } from '../api';
+import clsx from 'clsx';
 
 export default function PdfPreviewModal({ isOpen, onClose, docId, filename }) {
   const [isMaximized, setIsMaximized] = useState(false);
+  const [blobUrl, setBlobUrl] = useState(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    let url = null;
+    if (isOpen && docId) {
+      const loadPdf = async () => {
+        try {
+          setIsLoading(true);
+          setError(null);
+          url = await documentApi.view(docId);
+          setBlobUrl(url);
+        } catch (err) {
+          console.error("Failed to load PDF:", err);
+          setError(err.userMessage || "Failed to load document.");
+        } finally {
+          setIsLoading(false);
+        }
+      };
+      loadPdf();
+    }
+    return () => {
+      if (url) URL.revokeObjectURL(url);
+      setBlobUrl(null);
+    };
+  }, [isOpen, docId]);
 
   if (!isOpen) return null;
 
-  const pdfUrl = `http://localhost:8000/api/documents/view/${docId}`;
+  const pdfUrl = blobUrl ? `${blobUrl}#toolbar=0` : '';
 
   return (
     <AnimatePresence>
@@ -46,10 +75,10 @@ export default function PdfPreviewModal({ isOpen, onClose, docId, filename }) {
 
             <div className="flex items-center gap-2">
               <a 
-                href={pdfUrl} 
+                href={blobUrl || '#'} 
                 target="_blank" 
                 rel="noreferrer"
-                className="p-2 hover:bg-slate-100 rounded-lg text-slate-500 transition-colors"
+                className={`p-2 hover:bg-slate-100 rounded-lg text-slate-500 transition-colors ${!blobUrl ? 'opacity-50 pointer-events-none' : ''}`}
                 title="Open in new tab"
               >
                 <ExternalLink className="w-4 h-4" />
@@ -71,12 +100,35 @@ export default function PdfPreviewModal({ isOpen, onClose, docId, filename }) {
           </div>
 
           {/* PDF Viewer Area */}
-          <div className="flex-1 bg-slate-100 relative overflow-hidden">
-            <iframe 
-              src={`${pdfUrl}#toolbar=0`} 
-              className="w-full h-full border-none shadow-inner"
-              title="PDF View"
-            />
+          <div className="flex-1 bg-slate-100 relative overflow-hidden flex items-center justify-center">
+            {error ? (
+              <div className="flex flex-col items-center gap-3 px-8 text-center">
+                <div className="w-12 h-12 rounded-full bg-rose-50 flex items-center justify-center text-rose-500">
+                  <AlertCircle className="w-6 h-6" />
+                </div>
+                <div>
+                  <p className="text-sm font-bold text-slate-800 mb-1">Preview Failed</p>
+                  <p className="text-xs text-slate-500 max-w-[280px]">{error}</p>
+                </div>
+                <button 
+                  onClick={onClose}
+                  className="mt-2 px-4 py-2 bg-white hover:bg-slate-50 text-slate-600 text-xs font-semibold rounded-lg border border-slate-200 transition-colors shadow-sm"
+                >
+                  Close Preview
+                </button>
+              </div>
+            ) : isLoading ? (
+              <div className="flex flex-col items-center gap-3">
+                <Loader2 className="w-10 h-10 text-indigo-500 animate-spin" />
+                <span className="text-sm text-slate-500 font-medium tracking-wide">Securely loading document...</span>
+              </div>
+            ) : (
+              <iframe 
+                src={pdfUrl} 
+                className="w-full h-full border-none shadow-inner"
+                title="PDF View"
+              />
+            )}
           </div>
 
           {/* Footer Info */}

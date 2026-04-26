@@ -130,9 +130,19 @@ async def view_document(
     db: Session = Depends(get_db),
 ):
     """Securely serve the original document binary for the preview overlay."""
+    # Try by ID first
     doc = db.query(models.Document).filter(models.Document.id == doc_id).first()
+    
+    # Fallback: if not found by ID, try filename (for backward compatibility)
+    if not doc:
+        doc = db.query(models.Document).filter(
+            models.Document.filename == doc_id,
+            models.Document.user_id == current_user.id
+        ).order_by(models.Document.uploaded_at.desc()).first()
+
     if not doc:
         raise HTTPException(status_code=404, detail="Document not found")
+        
     if doc.user_id != current_user.id:
         raise HTTPException(status_code=403, detail="Access denied")
     

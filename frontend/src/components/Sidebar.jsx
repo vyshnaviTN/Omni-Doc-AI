@@ -189,10 +189,19 @@ export default function Sidebar() {
           <div className="space-y-0.5">
             {documents.length > 0 ? (
               documents.map(doc => (
-                <div key={doc.id} className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-slate-500 hover:bg-slate-50 transition-all cursor-default group">
+                <button 
+                  key={doc.id} 
+                  onClick={() => {
+                    window.dispatchEvent(new CustomEvent('omni-preview-doc', { 
+                      detail: { id: doc.id, filename: doc.filename } 
+                    }));
+                  }}
+                  className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-slate-500 hover:bg-indigo-50 hover:text-indigo-600 transition-all cursor-pointer group"
+                >
                   <div className="w-1.5 h-1.5 rounded-full bg-indigo-300 shrink-0 group-hover:bg-indigo-500 transition-colors" />
-                  <span className="truncate text-xs font-medium">{doc.filename}</span>
-                </div>
+                  <span className="truncate text-xs font-medium flex-1 text-left">{doc.filename}</span>
+                  <ChevronRight className="w-2.5 h-2.5 opacity-0 group-hover:opacity-100 transition-all" />
+                </button>
               ))
             ) : (
               <div className="px-3 py-2 text-xs text-slate-400 italic">

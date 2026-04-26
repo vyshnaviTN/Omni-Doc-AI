@@ -254,10 +254,14 @@ class RagEngine:
             if len(excerpt) > 200:
                 excerpt = f"{excerpt[:197]}..."
 
+            # Fallback: If document_id is missing, the frontend can try to lookup by source filename
+            # or we can pass it as a hint.
             sources.append({
-                "document": source,
+                "source": source,
+                "doc_id": chunk.metadata.get("document_id"),
+                "source_fallback": source, # Hint for the frontend to lookup ID if needed
                 "page": page,
-                "excerpt": excerpt,
+                "content": excerpt,
             })
         return sources
 
